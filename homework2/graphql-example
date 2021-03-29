@@ -1,0 +1,226 @@
+#!/bin/sh
+
+url='http://<YOUR_ENDPOINT>/graphql'
+
+function login {
+  username='<YOUR_USERNAME>'
+  password='<YOUR_PASSWORD>'
+
+  curl $url \
+    -s \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "query": "
+    mutation(\$input: LoginInput!) {
+      login(input: \$input) {
+        access_token
+      }
+    }
+  ",
+  "variables": {
+    "input": {
+      "username": "$username",
+      "password": "$password"
+    }
+  }
+}
+EOF
+}
+
+function create_tag {
+  access_token=$(login | jq .data.login.access_token -r)
+
+  curl $url \
+    -s \
+    -H "Authorization: Bearer $access_token" \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "query": "
+    mutation(\$input: TagInput!) {
+      createTag(input: \$input) {
+        id
+        name
+        color
+        created_at
+        updated_at
+      }
+    }
+  ",
+  "variables": {
+    "input": {
+      "name": "$(lorem-ipsum-generator -s 1)",
+      "color": "#ffffff"
+    }
+  }
+}
+EOF
+}
+
+function update_tag {
+  access_token=$(login | jq .data.login.access_token -r)
+
+  curl $url \
+    -s \
+    -H "Authorization: Bearer $access_token" \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "query": "
+    mutation(\$id: ID!, \$input: TagInput!) {
+      updateTag(id: \$id, input: \$input) {
+        id
+        name
+        color
+        created_at
+        updated_at
+      }
+    }
+  ",
+  "variables": {
+    "id": ${1:-1},
+    "input": {
+      "name": "$(lorem-ipsum-generator -s 1)",
+      "color": "#ffffff"
+    }
+  }
+}
+EOF
+}
+
+function delete_tag {
+  access_token=$(login | jq .data.login.access_token -r)
+
+  curl $url \
+    -s \
+    -H "Authorization: Bearer $access_token" \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "query": "
+    mutation(\$id: ID!) {
+      deleteTag(id: \$id) {
+        id
+        name
+        color
+        created_at
+        updated_at
+      }
+    }
+  ",
+  "variables": {
+    "id": ${1:-1}
+  }
+}
+EOF
+}
+
+function tag {
+  access_token=$(login | jq .data.login.access_token -r)
+
+  curl $url \
+    -s \
+    -H "Authorization: Bearer $access_token" \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "query": "
+    query(\$id: ID!) {
+      tag(id: \$id) {
+        id
+        name
+        color
+        created_at
+        updated_at
+      }
+    }
+  ",
+  "variables": {
+    "id": ${1:-3}
+  }
+}
+EOF
+}
+
+function tags {
+  access_token=$(login | jq .data.login.access_token -r)
+
+  curl $url \
+    -s \
+    -H "Authorization: Bearer $access_token" \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "query": "
+    query(\$search: String) {
+      tags(search: \$search) {
+        data {
+          id
+          name
+          color
+          created_at
+          updated_at
+        }
+        paginatorInfo {
+          total
+          lastPage
+        }
+      }
+    }
+  ",
+  "variables": {
+    "search": "${1:-a}"
+  }
+}
+EOF
+}
+
+function users {
+  access_token=$(login | jq .data.login.access_token -r)
+
+  curl $url \
+    -s \
+    -H "Authorization: Bearer $access_token" \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "query": "
+    query(\$search: String) {
+      users(search: \$search) {
+        data {
+          id
+          title
+          first_name
+          last_name
+          email
+        }
+        paginatorInfo {
+          total
+          lastPage
+        }
+      }
+    }
+  ",
+  "variables": {
+    "search": "${1:-a}"
+  }
+}
+EOF
+}
+
+if [[ " login users tag tags create_tag update_tag delete_tag " == *" $1 "* ]]
+then
+  subcommand=$1
+  shift
+  eval $subcommand $@ | jq | bat -l json
+else
+  echo "subcommand $1 does not exists"
+fi
