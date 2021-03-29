@@ -1,0 +1,69 @@
+#!/bin/sh
+
+url=https://jsonplaceholder.typicode.com
+
+function get_posts {
+  curl $url/posts -s
+}
+
+function get_post {
+  curl $url/posts/${1:-1} -s
+}
+
+function get_post_comments {
+  curl $url/posts/${1:-1}/comments -s
+}
+
+function post_post {
+  curl $url/posts \
+    -s \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    -d @- << EOF
+{
+  "title": "$(lorem-ipsum-generator -s 1)",
+  "body": "$(lorem-ipsum-generator -p 1)",
+  "userId": 1
+}
+EOF
+}
+
+function put_post {
+  curl $url/posts/${1:-1} \
+    -s \
+    -H 'Content-Type: application/json' \
+    -X PUT \
+    -d @- << EOF
+{
+  "id": ${1:-1},
+  "title": "$(lorem-ipsum-generator -s 1)",
+  "body": "$(lorem-ipsum-generator -p 1)",
+  "userId": 1
+}
+EOF
+}
+
+function patch_post {
+  curl $url/posts/${1:-1} \
+    -s \
+    -H 'Content-Type: application/json' \
+    -X PATCH \
+    -d @- << EOF
+{
+  "title": "$(lorem-ipsum-generator -s 1)"
+}
+EOF
+}
+
+function delete_post {
+  curl $url/posts/${1:-1} -s -X DELETE
+}
+
+if [[ " get_posts get_post get_post_comments create_post put_post patch_post delete_post " == *" $1 "* ]]
+then
+  subcommand=$1
+  shift
+  eval $subcommand $@ | bat -l json
+else
+  echo "subcommand $1 does not exists"
+fi
